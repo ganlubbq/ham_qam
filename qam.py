@@ -35,3 +35,21 @@ DECODE = {
      1+2j:14,
      1+1j:15,
 }
+
+def bits_to_symbols():
+    return
+
+def symbols_to_bits():
+    return
+
+def mod_QAM16():
+    return
+
+def detect_sync():
+    return
+
+def demod_QAM16():
+    return
+
+def decode_symbols():
+    return
