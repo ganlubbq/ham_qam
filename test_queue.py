@@ -79,7 +79,8 @@ def audio_dev_numbers(p, in_name=u'default', out_name=u'default', debug=False):
         print '\n'
 
     return din, dout, dusb
-
+#TODO add silence to prevent buffer underrun
+# http://stackoverflow.com/questions/19230983/prevent-alsa-underruns-with-pyaudio
 def play_audio( Q, p, fs , dev):
     # play_audio plays audio with sampling rate = fs
     # Q - A queue object from which to play
@@ -102,6 +103,8 @@ def play_audio( Q, p, fs , dev):
     while (1):
         data = Q.get()
         if data=="EOT" :
+            print data
+            ostream.close()
             q.task_done()
             break
         try:
@@ -109,6 +112,7 @@ def play_audio( Q, p, fs , dev):
             q.task_done()
         except Exception as e:
             print e
+            ostream.close()
             break
 
 def gen_ptt(plen=150, zlen=400, fs=44100.0, plot=False):
@@ -142,71 +146,25 @@ def gen_ptt(plen=150, zlen=400, fs=44100.0, plot=False):
 
     ostream = p.open(format=pyaudio.paFloat32, channels=1, rate=int(fs),output=True,output_device_index=dev)
 
-
-
-fs = 44100
+fs = 44100.0
 p = pyaudio.PyAudio() #instantiate PyAudio
-ptt = gen_ptt(plen=1000, zlen=1100, fs=fs)
+ptt = gen_ptt(plen=400, zlen=450, fs=fs)
 
 din, dout, dusb =  audio_dev_numbers(p, in_name=u'default', out_name=u'default', debug=False)
-dev = dout
-ostream = p.open(format=pyaudio.paFloat32, channels=1, rate=int(fs),output=True,output_device_index=dev)
-
-ostream.write( ptt.astype(np.float32).tostring() )
-print '\nterminating\n'
-time.sleep(2)
-ostream.close()
-p.terminate()
-
-quit()
 
 q = Queue()
 
-play = Thread(target=play, args=(q, p, 44100.0, dout))
+play = Thread(target=play_audio, args=(q, p, fs, dout))
 play.daemon = True
 play.start()
 
 for item in range(10):
-    q.put(item)
+    q.put(ptt)
     time.sleep(1)
     print 'put %d'%(item)
+q.put("EOT")
 
 q.join()       # block until all tasks are done
+print '\nterminating\n'
 p.terminate()
-
-#def add_samples(queue, N=10):
-#    for i in range(N):
-#        print "putting %d"%(i)
-#        queue.put(i) # append to list
-#        time.sleep(1)
-#    queue.put("END")
-#    return
-#
-#def read_samples(queue):
-#    print "start read"
-#    while True:
-#        chunk = queue.get()
-#        if chunk=="END":
-#            print chunk
-#            q.task_done()
-#            return
-#        else:
-#            print "got %s"%(str(chunk))
-#            q.task_done()
-#
-#q = Queue.Queue()
-#add = threading.Thread(target=add_samples, args=(q,10))
-#add.daemon=True
-#read = threading.Thread(target=read_samples, args=(q,))
-#read.daemon=True
-#
-#add.start()
-#time.sleep(2)
-#read.start()
-#q.join()
-#print 'exiting'
-
-
-
-
 
