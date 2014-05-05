@@ -22,30 +22,36 @@ ENCODE = {
 }
 
 DECODE = {
-    -2-2j:0,
-    -2-1j:1,
-    -2+2j:2,
-    -2+1j:3,
-    -1-2j:4,
-    -1-1j:5,
-    -1+2j:6,
-    -1-1j:7,
-     2-2j:8,
-     2-1j:9,
-     2+2j:10,
-     2+1j:11,
-     1-2j:12,
-     1-1j:13,
-     1+2j:14,
-     1+1j:15,
+        -2.:{-2.0:0},
+    -2.:{-1.0:1,
+         +2.0:2,
+         +1.0:3},
+    -1.:{-2.0:4,
+         -1.0:5,
+         +2.0:6,
+         -1.0:7},
+     2.:{-2.0:8,
+         -1.0:9,
+         +2.0:10,
+         +1.0:11},
+     1.:{-2.0:12,
+         -1.0:13,
+         +2.0:14,
+         +1.0:15},
 }
 
 #TODO implement these
 def hex_to_symbols():
     return
 
-def symbols_to_hex():
-    return
+def symbols_to_hex(symbols):
+    for s in symbols:
+        print s.real
+        print s.imag
+        print DECODE.keys()
+        r = DECODE[s.real]
+        r.keys
+        print r[s.imag]
 
 def mod_QAM16(bits, prefix, f0=1800, tbw=4, fs=48000, baud=300, shaped=True, plot=False):
     Ns = fs/baud
@@ -181,4 +187,6 @@ def decode_symbols(r, i, corr_index, r0, i0, Nbits, fs=48000, baud=300):
     fig = plt.figure(figsize = (8,8))
     plt.scatter(r0*2, i0*2, c='r')
     plt.scatter(r_dec, i_dec, c='g')
+
+    return r_dec + 1j*i_dec
 
