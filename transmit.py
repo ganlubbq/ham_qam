@@ -147,7 +147,7 @@ def transmit(data, fs=44100.0, verbose=False):
 
     # Array to queue
     Qout = Queue.Queue()
-    ptt = gen_ptt(fs=fs)
+    ptt = gen_ptt(plen=100, zlen=2200, fs=fs)
     data = np.append(ptt, data)
    #for n in np.r_[0:len(data):512]:
    #    Qout.put(data[n:n+512])
@@ -172,24 +172,22 @@ def rand_bits(fs):
         -2-1j,-2+2j,-2+1j,-1-2j,-1-1j,-1+2j,-1+1j,+2-2j,+2-1j,+2+2j+2+1j,1-2j,+1-1j,1+2j,1+1j))/2
 
     np.random.seed(seed=1)
-    rbits = np.int16(rand(6,1)*15)
+    rbits = np.int16(np.random.rand(6,1)*15)
     prefix = np.array([[0],[2],[10],[8]])
-    bits = np.int16(rand(26,1)*15)
+    bits = np.int16(np.random.rand(26,1)*15)
 
     Nbits = len(rbits) + len(prefix) + len(bits)  # number of bits
     bits = np.array(rbits.tolist() + prefix.tolist() + bits.tolist())
     N = Nbits * Ns
 
     M = np.tile(code[bits],(1,Ns))
-    M_prefix = np.tile(code[prefix],(1,Ns))
-    t = r_[0.0:N]/fs
-    t_prefix = r_[0.0:len(prefix)*Ns]/fs
+    t = np.r_[0.0:N]/fs
 
     np.save('data/real.npy', M.real.ravel())
     np.save('data/imag.npy', M.imag.ravel())
 
-    QAM = (M.real.ravel()*cos(2*pi*f0*t) -
-            M.imag.ravel()*sin(2*pi*f0*t))/2/sqrt(2)
+    QAM = (M.real.ravel()*np.cos(2*np.pi*f0*t) -
+            M.imag.ravel()*np.sin(2*np.pi*f0*t))/2/np.sqrt(2)
 
     return QAM
 
