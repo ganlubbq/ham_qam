@@ -1,13 +1,14 @@
+import sys
+import os.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
+    os.path.pardir)))
 from nader_func import *
 from qam import *
-from lab3_1 import transmit_and_capture
-from lab3_1 import genPTT
-from lab3_1 import text_to_morse
-
+from transmit import transmit
 
 
 prefix = np.array([[0],[2],[10],[8]])
-bits= np.array([[1],[1],[1],[1],[1],[0],[2],[10],[8],[6],[11] , [0], [4], [2],[1], [2], [5], [6], [8], [6], [10], [3], [14],[0],[10]])
+bits= np.array([[0],[2],[10],[0],[1],[0],[2],[10],[8],[6],[11] , [0], [4], [2],[1], [2], [5], [6], [8], [6], [10], [3], [14],[0],[10]])
 randombits = randomBits(16)
 
 #fs = 44100
@@ -38,39 +39,12 @@ print "index from corr: ", corr_index
 # fig = figure()
 # plot(abs(corr))
 # title("modulated sinusoid corr")
-fc0=443.650e6
-fc = fc0*(1.0-85e-6)
-ptt =  genPTT(150, 400, fs)
-ptt_long =  genPTT(1000, 1100, fs)
-morse = np.append(ptt, text_to_morse('KK6KKT', fc, fs, dt=75))
-print 'QAM '+str(len(QAM))
-to_send = np.append(morse, 0*ptt_long)
-to_send = np.append(to_send, ptt)
-to_send = np.append(to_send, 0*ptt)
-to_send = np.append(to_send QAM)
-to_send = np.append(to_send, 0*ptt)
-to_send = np.append(to_send, ptt)
-transmit_and_capture(to_send, 'data/qam_with_sync1.npy', 12, title='Captured Data',
-        verbose=True, fc0=fc0,  plot=True)
-
-output = np.load('data/qam_with_sync1.npy')
-temp = output*np.conjugate(np.roll(output, 1))
-y = np.angle(temp)
-fig = figure()
-print len(y)
-y=y[::5][-4000:]
-print len(y)
-fig = figure()
-subplot(2,1,1)
-plot(y[len(y)/2:])
-subplot(2,1,2)
-plot(abs(fftshift(fft(y[len(y)/2:]))))
-show()
-quit()
+#transmit(QAM)
+#quit()
 # -----------------
 #begin demodulation:
-#r,i = demod(QAM, f0, t)
-r,i = demod(y, f0, t)
+r,i = demod(QAM, f0, t)
+#r,i = demod(y, f0, t)
 
 fig = figure()
 subplot(2,1,1)
@@ -92,7 +66,8 @@ frange_filt = np.linspace(-fs/2,fs/2,len(r_lp))
 corr_r = abs(signal.correlate(r_lp.ravel(),M_prefix.real.ravel(),"same"))
 corr_i = abs(signal.correlate(i_lp.ravel(), M_prefix.imag.ravel(),"same"))
 
-corr_index = argmax(corr_r)
+#max correlation index is in middle of the prefix, ie both line up perfectly
+corr_index = argmax(corr_r)-2*Ns #subtract number of symbols in prefix /2
 print "index from corr: ", corr_index
 
 fig = figure()
