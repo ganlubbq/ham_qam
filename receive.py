@@ -102,16 +102,19 @@ def play_audio(Q, p, fs , dev, Qsav):
     # open output stream
     ostream = p.open(format=pyaudio.paFloat32, channels=1, rate=int(fs),output=True,output_device_index=dev)
     # play audio
+    count = 0
     while (1):
         data = Q.get()
         if data=="EOT" :
             print "Finished playing"
+            print "received %d samples"%(count)
             #Qsav.put(data)
             ostream.close()
             Q.task_done()
             break
         try:
             ostream.write( data.astype(np.float32).tostring() )
+            count += len(data)
             Qsav.put(data.astype(np.float32))
             Q.task_done()
         except Exception as e:
@@ -139,6 +142,7 @@ def record_audio(Qin, Qout, p, fs ,dev,chunk=512):
 
     # record audio in chunks and append to frames
     frames = [];
+    count = 0
 
     while (1):
         try:  # when the pyaudio object is distroyed stops
@@ -148,20 +152,22 @@ def record_audio(Qin, Qout, p, fs ,dev,chunk=512):
             print e
             break
         data_flt = np.fromstring( data_str, 'float32' ) # convert string to float
+        count += len(data_flt)
         try:
             Qin.get_nowait() # append to list
+            Qout.put(data_flt) # append to list
             print "Stop recording"
             istream.close()
             Qout.put("EOT")
+            print "got %d"%(count)
             return
         except:
             Qout.put(data_flt) # append to list
 
-def timed_record(filename, length):
+def timed_record(filename, length, fs):
     '''
     length (float) time to record in seconds
     '''
-    fs = 44100.0
     p = pyaudio.PyAudio()
     din, dout, dusb = audio_dev_numbers(p, in_name=u'default',
             out_name=u'default', debug=False)
@@ -195,14 +201,14 @@ def timed_record(filename, length):
         output = []
         for chunk in Qsav.queue:
             output+=chunk.tolist()
+        print len(output)
         output = np.array(output)
         np.save('data/'+filename, output)
 
-def manual_record(filename):
+def manual_record(filename, fs):
     '''
     length (float) time to record in seconds
     '''
-    fs = 44100.0
     p = pyaudio.PyAudio()
     din, dout, dusb = audio_dev_numbers(p, in_name=u'default',
             out_name=u'default', debug=False)
@@ -235,8 +241,8 @@ def manual_record(filename):
         print 'Saving to data/%s.npy...'%(filename)
         output = []
         for chunk in Qsav.queue:
-            print np.shape(chunk)
             output+=chunk.tolist()
+        print len(output)
         output = np.array(output)
         np.save('data/'+filename, output)
 
@@ -246,13 +252,14 @@ def main():
     parser.add_argument('--filename', default=None, help='output to data/FILENAME.npy')
     parser.add_argument('-t', '--time', type=float, default=0,
             help='Perform a timed recording for TIME seconds')
+    parser.add_argument('--fs', type=float, default=48000.0, help='print additional output')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='print additional output')
     args = parser.parse_args()
 
     if args.time > 0:
-        timed_record(args.filename, args.time)
+        timed_record(args.filename, args.time, args.fs)
     else:
-        manual_record(args.filename)
+        manual_record(args.filename, args.fs)
 
 if __name__ == "__main__":
     main()
