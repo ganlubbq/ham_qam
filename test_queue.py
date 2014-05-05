@@ -115,7 +115,7 @@ def play_audio( Q, p, fs , dev):
             ostream.close()
             break
 
-def record_audio(Qin, Qout, p, fs ,dev,chunk=1024):
+def record_audio(Qin, Qout, p, fs ,dev,chunk=512):
     # record_audio records audio with sampling rate = fs
     # queue - output data queue
     # p     - pyAudio object
@@ -191,6 +191,9 @@ ptt = gen_ptt(plen=400, zlen=450, fs=fs)
 
 din, dout, dusb =  audio_dev_numbers(p, in_name=u'default', out_name=u'default',
         debug=False)
+print "din sample rate: %f"%(p.get_device_info_by_index(din)['defaultSampleRate'])
+print "dout sample rate: %f"%(p.get_device_info_by_index(dout)['defaultSampleRate'])
+print "dusb sample rate: %f"%(p.get_device_info_by_index(dusb)['defaultSampleRate'])
 
 Qin = Queue()
 Qout = Queue()
