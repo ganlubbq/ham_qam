@@ -46,12 +46,12 @@ print "index from corr: ", corr_index
 r,i = demod(QAM, f0, t)
 #r,i = demod(y, f0, t)
 
-fig = figure()
-subplot(2,1,1)
-plot(r)
-subplot(2,1,2)
-plot(i)
-title('raw demod')
+#fig = figure()
+#subplot(2,1,1)
+#plot(r)
+#subplot(2,1,2)
+#plot(i)
+#title('raw demod')
 
 #lowpass the signals to remove images
 lp = signal.firwin(100,pi*f0/4,nyq=44100.0/2.0)
@@ -70,10 +70,10 @@ corr_i = abs(signal.correlate(i_lp.ravel(), M_prefix.imag.ravel(),"same"))
 corr_index = argmax(corr_r)-2*Ns #subtract number of symbols in prefix /2
 print "index from corr: ", corr_index
 
-fig = figure()
-plot(corr_r)
-plot(corr_i)
-title("demodulated bits corr")
+#fig = figure()
+#plot(corr_r)
+#plot(corr_i)
+#title("demodulated bits corr")
 
 #This next block of code is supposed to trim everything that isn't
 #what we want from the front (afte corr), but I don't think it
@@ -82,50 +82,68 @@ r = r_lp[corr_index:]
 
 i = i_lp[corr_index:]
 
-fig = figure()
-subplot(2,1,1)
-plot(r_lp)
-subplot(2,1,2)
-plot(i_lp)
-title('low pass filtered')
+#fig = figure()
+#subplot(2,1,1)
+#plot(r_lp)
+#subplot(2,1,2)
+#plot(i_lp)
+#title('low pass filtered')
 
-fig = figure()
-plot(r/max(r))
+#fig = figure()
+#plot(r/max(r))
 #5 is the number of garbage symbols i put in before the prefix in the signal
-plot(M.real.ravel()[Ns*5:])
-ylim(-1.25,1.25)
-show()
+#plot(M.real.ravel()[Ns*5:])
+#ylim(-1.25,1.25)
+#title(test)
+#show()
 
 #need to know number of bits for this to work (packet size i guess?)
 #Nbits might be wrong here, since it really needs the nubmer of bits
 #minus the amount you chopped off after correlating
-idx = r_[0:len(r):len(r)/Nbits]
-r = r/max(r)*max(M.real.ravel())*2 #change this 2 depending on the input amplitude
-i = i/max(i)*max(M.imag.ravel())*2 #change this 2 depending on the input amplitude
-r = np.around(r)
-i = np.around(i)
+
+
+
+Nbits = Nbits - 5
+idx = r_[0:len(r):len(r)/Nbits]+(Ns/2)
+idx = idx[:-2]
+r = r/max(r)*max(M.real.ravel()[Ns*5:])*2 #change this 2 depending on the input amplitude
+i = i/max(i)*max(M.imag.ravel()[Ns*5:])*2 #change this 2 depending on the input amplitude
+#r = np.around(r)
+#i = np.around(i)
 r_dec = np.around(r[idx])
 i_dec = np.around(i[idx])
-offset = len(M.real.ravel())/Nbits
+#offset = len(M.real.ravel()[Ns*5:])/Nbits
 
 print "len(r)", len(r)
 print "len(r_dec)", len(r_dec)
-
-r_avg = []
-i_avg = []
-periods = r_[0:len(r):offset]
-
-
-for prd in periods[0:-1]:
-    current_avg_r = np.average(r[prd:prd+offset])
-    r_avg = np.append(r_avg, current_avg_r)
-
-    current_avg_i = np.average(i[prd:prd+offset])
-    i_avg = np.append(i_avg, current_avg_i)
+#print "r_[0:len(r):offset] " , len(r_[0:len(r):offset])
+print "Nbits ", Nbits
+fig = figure()
+plot(r)
+stem(idx,r_dec, "r")
+ylim(-3,3)
+title("r dec")
 
 
-decoded = np.around(r_avg) + 1j*np.around(i_avg)
+#r_avg = []
+#i_avg = []
+#periods = r_[0:len(r):offset]
 
+
+#for prd in periods[0:-1]:
+#    current_avg_r = np.average(r[prd:prd+offset])
+#    r_avg = np.append(r_avg, current_avg_r)
+#
+#    current_avg_i = np.average(i[prd:prd+offset])
+#    i_avg = np.append(i_avg, current_avg_i)
+
+
+#decoded = np.around(r_avg) + 1j*np.around(i_avg)
+decoded = r_dec #+ 1j*i_dec
 finalbits = np.array([])
 decoded = decoded/2
-
+Msmall = M[:,0]
+print "index, decoded, sent"
+for idx,val in enumerate(decoded):
+    print idx, val==Msmall[idx].real, val, Msmall[idx].real
+show()
