@@ -105,15 +105,54 @@ def play_audio( Q, p, fs , dev):
         if data=="EOT" :
             print data
             ostream.close()
-            q.task_done()
+            Q.task_done()
             break
         try:
             ostream.write( data.astype(np.float32).tostring() )
-            q.task_done()
+            Q.task_done()
         except Exception as e:
             print e
             ostream.close()
             break
+
+def record_audio(Qin, Qout, p, fs ,dev,chunk=1024):
+    # record_audio records audio with sampling rate = fs
+    # queue - output data queue
+    # p     - pyAudio object
+    # fs    - sampling rate
+    # dev   - device number
+    # chunk - chunks of samples at a time default 1024
+    #
+    # Example:
+    # fs = 44100
+    # Q = Queue.queue()
+    # p = pyaudio.PyAudio() #instantiate PyAudio
+    # record_audio( Q, p, fs, 1) #
+    # p.terminate() # terminate pyAudio
+
+
+    istream = p.open(format=pyaudio.paFloat32, channels=1, rate=int(fs),input=True,input_device_index=dev,frames_per_buffer=chunk)
+
+    # record audio in chunks and append to frames
+    frames = [];
+
+    while (1):
+        try:  # when the pyaudio object is distroyed stops
+            data_str = istream.read(chunk) # read a chunk of data
+        except Exception as e:
+            print "error reading input"
+            print e
+            break
+        data_flt = np.fromstring( data_str, 'float32' ) # convert string to float
+        try:
+            Qin.get_nowait() # append to list
+            print "Stop recording"
+            istream.close()
+            Qout.put("EOT")
+            return
+        except:
+            print "put %d samples"%(len(data_flt))
+            Qout.put(data_flt) # append to list
 
 def gen_ptt(plen=150, zlen=400, fs=44100.0, plot=False):
     """Function generates a short pulse to activate the VOX
@@ -150,21 +189,23 @@ fs = 44100.0
 p = pyaudio.PyAudio() #instantiate PyAudio
 ptt = gen_ptt(plen=400, zlen=450, fs=fs)
 
-din, dout, dusb =  audio_dev_numbers(p, in_name=u'default', out_name=u'default', debug=False)
+din, dout, dusb =  audio_dev_numbers(p, in_name=u'default', out_name=u'default',
+        debug=False)
 
-q = Queue()
+Qin = Queue()
+Qout = Queue()
 
-play = Thread(target=play_audio, args=(q, p, fs, dout))
+play = Thread(target=play_audio, args=(Qout, p, fs, dout))
 play.daemon = True
 play.start()
 
-for item in range(10):
-    q.put(ptt)
-    time.sleep(1)
-    print 'put %d'%(item)
-q.put("EOT")
+record = Thread(target=record_audio, args=(Qin, Qout, p, fs, dusb))
+record.daemon = True
+record.start()
 
-q.join()       # block until all tasks are done
+time.sleep(5)
+Qin.put("EOT")
+Qout.join()       # block until all tasks are done
 print '\nterminating\n'
 p.terminate()
 
