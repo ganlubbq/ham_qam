@@ -10,7 +10,7 @@ ENCODE = {
     4: -1-2j,
     5: -1-1j,
     6: -1+2j,
-    7: -1-1j,
+    7: -1+1j,
     8:  2-2j,
     9:  2-1j,
     10: 2+2j,
@@ -22,36 +22,43 @@ ENCODE = {
 }
 
 DECODE = {
-        -2.:{-2.0:0},
-    -2.:{-1.0:1,
-         +2.0:2,
-         +1.0:3},
-    -1.:{-2.0:4,
-         -1.0:5,
-         +2.0:6,
-         -1.0:7},
-     2.:{-2.0:8,
-         -1.0:9,
-         +2.0:10,
-         +1.0:11},
-     1.:{-2.0:12,
-         -1.0:13,
-         +2.0:14,
-         +1.0:15},
+    -2:{-2:0, -1:1, 2:2,  1:3},
+    -1:{-2:4, -1:5, 2:6,  1:7},
+     2:{-2:8, -1:9, 2:10, 1:11},
+     1:{-2:12,-1:13,2:14, 1:15},
 }
+
+#np.array((
+#   -2-2j,
+#   -2-1j,
+#   -2+2j,
+#   -2+1j,
+#   -1-2j,
+#   -1-1j,
+#   -1+2j,
+#   -1+1j,
+#   +2-2j,
+#   +2-1j,
+#   +2+2j,
+#   +2+1j,
+#   +1-2j,
+#   +1-1j,
+#   +1+2j,
+#   +1+1j))
 
 #TODO implement these
 def hex_to_symbols():
     return
 
 def symbols_to_hex(symbols):
-    for s in symbols:
-        print s.real
-        print s.imag
-        print DECODE.keys()
-        r = DECODE[s.real]
-        r.keys
-        print r[s.imag]
+    #for s in symbols:
+       #print s.real
+       #print s.imag
+       #r = DECODE[int(s.real)][int(s.imag)]
+       #print r.keys()
+       #print (int(s.imag) in r.keys())
+       #print r[int(s.imag)]
+    return [DECODE[int(s.real)][int(s.imag)] for s in symbols]
 
 def mod_QAM16(bits, prefix, f0=1800, tbw=4, fs=48000, baud=300, shaped=True, plot=False):
     Ns = fs/baud
@@ -62,7 +69,7 @@ def mod_QAM16(bits, prefix, f0=1800, tbw=4, fs=48000, baud=300, shaped=True, plo
 
 
     code = np.array((-2-2j,
-        -2-1j,-2+2j,-2+1j,-1-2j,-1-1j,-1+2j,-1+1j,+2-2j,+2-1j,+2+2j+2+1j,1-2j,+1-1j,1+2j,1+1j))/2
+        -2-1j,-2+2j,-2+1j,-1-2j,-1-1j,-1+2j,-1+1j,+2-2j,+2-1j,+2+2j,2+1j,1-2j,+1-1j,1+2j,1+1j))/2
 
     Nbits = len(bits)
     N = Nbits * Ns
@@ -158,12 +165,12 @@ def decode_symbols(r, i, corr_index, r0, i0, Nbits, fs=48000, baud=300):
     i = i/np.max(i)*2.2 #change this 2 depending on the input amplitude
 
     fig = plt.figure(figsize = (16,4))
-    plt.plot(r0)
+    plt.plot(2*r0)
     plt.plot(r)
     plt.title('Real part, raw input and normalized')
 
     fig = plt.figure(figsize = (16,4))
-    plt.plot(i0)
+    plt.plot(2*i0)
     plt.plot(i)
     plt.title('Imaginary part, raw input and normalized')
 
@@ -177,14 +184,14 @@ def decode_symbols(r, i, corr_index, r0, i0, Nbits, fs=48000, baud=300):
     i_dec = np.around(i[idx])
 
     fig = plt.figure(figsize = (16,4))
-    plt.plot(r0)
+    plt.plot(2*r0)
     plt.plot(r)
     plt.plot(np.around(r))
     plt.stem(idx, r_dec)
     plt.title('Real part, decoded by sampling values as indicated')
 
     fig = plt.figure(figsize = (16,4))
-    plt.plot(i0)
+    plt.plot(2*i0)
     plt.plot(i)
     plt.plot(np.around(i))
     plt.stem(idx, i_dec)
