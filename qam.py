@@ -75,10 +75,13 @@ def mod_QAM16(bits, prefix, f0=1800, tbw=4, fs=48000, baud=300, shaped=True, plo
     fig = plt.figure(figsize = (16,4))
     plt.plot(t_prefix, M_prefix.real.ravel())
     plt.ylim(-3,3)
+    plt.title("Real Values of Sent Symbols")
 
     fig = plt.figure(figsize = (16,4))
     plt.plot(t_prefix, M_prefix.imag.ravel())
     plt.ylim(-3,3)
+    plt.title("Imaginary Values of Sent Symbols")
+
 
     fig = plt.figure()
     plt.scatter(M.real.ravel(), M.imag.ravel())
@@ -136,6 +139,7 @@ def detect_sync(r, i, sync, sync_bits, fs=48000, baud=300):
     fig = plt.figure(figsize = (16,4))
     plt.plot(corr_r)
     plt.plot(corr_i)
+    plt.title("Correlation of signal with known prefix")
     return corr_index
 
 def decode_symbols(r, i, corr_index, r0, i0, Nbits, fs=48000, baud=300):
@@ -156,12 +160,12 @@ def decode_symbols(r, i, corr_index, r0, i0, Nbits, fs=48000, baud=300):
     fig = plt.figure(figsize = (16,4))
     plt.plot(r0)
     plt.plot(r)
-    plt.title('Actual and filtered real')
+    plt.title('Real part, raw input and normalized')
 
     fig = plt.figure(figsize = (16,4))
     plt.plot(i0)
     plt.plot(i)
-    plt.title('Actual and filtered imag')
+    plt.title('Imaginary part, raw input and normalized')
 
     ####Decode
     idx = np.r_[Ns/2:len(r):Ns]
@@ -177,16 +181,19 @@ def decode_symbols(r, i, corr_index, r0, i0, Nbits, fs=48000, baud=300):
     plt.plot(r)
     plt.plot(np.around(r))
     plt.stem(idx, r_dec)
+    plt.title('Real part, decoded by sampling values as indicated')
 
     fig = plt.figure(figsize = (16,4))
     plt.plot(i0)
     plt.plot(i)
     plt.plot(np.around(i))
     plt.stem(idx, i_dec)
-
+    plt.title('Imaginary part, decoded by sampling values as indicated')
     fig = plt.figure(figsize = (8,8))
     plt.scatter(r0*2, i0*2, c='r')
     plt.scatter(r_dec, i_dec, c='g')
+
+    plt.title('Constellation of input message vs decoded symbols')
 
     return r_dec + 1j*i_dec
 
