@@ -5,6 +5,8 @@ import sys
 
 from Queue import Queue
 from threading import Thread
+from scipy.io.wavfile import write as wav_write
+from scipy.io.wavfile import read as wav_read
 
 def audio_dev_numbers(p, in_name=u'default', out_name=u'default', debug=False):
     """ din, dout, dusb = audioDevNumbers(p)
@@ -81,7 +83,7 @@ def audio_dev_numbers(p, in_name=u'default', out_name=u'default', debug=False):
     return din, dout, dusb
 #TODO add silence to prevent buffer underrun
 # http://stackoverflow.com/questions/19230983/prevent-alsa-underruns-with-pyaudio
-def play_audio( Q, p, fs , dev):
+def play_audio(Q, p, fs , dev, Qsav):
     # play_audio plays audio with sampling rate = fs
     # Q - A queue object from which to play
     # p   - pyAudio object
@@ -104,11 +106,13 @@ def play_audio( Q, p, fs , dev):
         data = Q.get()
         if data=="EOT" :
             print data
+            #Qsav.put(data)
             ostream.close()
             Q.task_done()
             break
         try:
             ostream.write( data.astype(np.float32).tostring() )
+            Qsav.put(data.astype(np.float32))
             Q.task_done()
         except Exception as e:
             print e
@@ -154,6 +158,21 @@ def record_audio(Qin, Qout, p, fs ,dev,chunk=512):
             print "put %d samples"%(len(data_flt))
             Qout.put(data_flt) # append to list
 
+def save_wav(Qsav, filename, fs):
+    data = np.array([]);
+    print '\ngetting data\n'
+    while(1):
+        chunk = Qin.get() # append to list
+        if chunk=="EOT":
+            print 'Saving output...'
+            wav_write(filename, fs, data)
+            Q.task_done()
+            return
+        else:
+            data = np.append(data, chunk) # append to list
+            print len(data)
+            Q.task_done()
+
 def gen_ptt(plen=150, zlen=400, fs=44100.0, plot=False):
     """Function generates a short pulse to activate the VOX
 
@@ -188,7 +207,6 @@ def gen_ptt(plen=150, zlen=400, fs=44100.0, plot=False):
 fs = 44100.0
 p = pyaudio.PyAudio() #instantiate PyAudio
 ptt = gen_ptt(plen=400, zlen=450, fs=fs)
-
 din, dout, dusb =  audio_dev_numbers(p, in_name=u'default', out_name=u'default',
         debug=False)
 print "din sample rate: %f"%(p.get_device_info_by_index(din)['defaultSampleRate'])
@@ -197,8 +215,9 @@ print "dusb sample rate: %f"%(p.get_device_info_by_index(dusb)['defaultSampleRat
 
 Qin = Queue()
 Qout = Queue()
+Qsav = Queue()
 
-play = Thread(target=play_audio, args=(Qout, p, fs, dout))
+play = Thread(target=play_audio, args=(Qout, p, fs, dout, Qsav))
 play.daemon = True
 play.start()
 
@@ -211,4 +230,67 @@ Qin.put("EOT")
 Qout.join()       # block until all tasks are done
 print '\nterminating\n'
 p.terminate()
+
+print '\ngetting data\n'
+#output = np.matrix([item for item in Qsav.queue])
+#output = np.matrix([item for item in Qsav.queue])
+
+# Qsav to array
+output = []
+for chunk in Qsav.queue:
+    print np.shape(chunk)
+    output+=chunk.tolist()
+output = np.array(output)
+print len(output)
+
+# Array to queue
+Qtest = Queue()
+Qout = Queue()
+print '\nloading\n'
+for n in np.r_[0:len(output):512]:
+    Qout.put(output[n:n+512])
+Qout.put("EOT")
+
+time.sleep(2)
+p = pyaudio.PyAudio() #instantiate PyAudio
+print '\nplaying\n'
+play = Thread(target=play_audio, args=(Qout, p, fs, dout, Qtest))
+play.daemon = True
+play.start()
+Qout.join()       # block until all tasks are done
+p.terminate()
+print '\nexit\n'
+
+print '\nwriting output file\n'
+#wav_write('test.wav', 44100, output)
+np.save('test.npy',output)
+
+p = pyaudio.PyAudio() #instantiate PyAudio
+print '\nreading input file\n'
+#fs, test = wav_read('test.wav')
+test = np.load('test.npy')
+
+Qout = Queue()
+Qsav = Queue()
+
+print '\nloading\n'
+for n in np.r_[0:len(test):512]:
+    Qout.put(test[n:n+512])
+Qout.put("EOT")
+
+print '\nplaying\n'
+play = Thread(target=play_audio, args=(Qout, p, fs, dout, Qsav))
+play.daemon = True
+play.start()
+Qout.join()       # block until all tasks are done
+p.terminate()
+print '\nexit\n'
+quit()
+
+save = Thread(target=save_wav, args=(Qsav, 'test.wav', fs))
+save.daemon = True
+save.start()
+Qsav.join()       # block until all tasks are done
+
+
 
