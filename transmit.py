@@ -163,14 +163,47 @@ def transmit(data, fs=44100.0, verbose=False):
     print 'Terminating PyAudio...'
     p.terminate()
 
+def rand_bits(fs):
+    baud = 300  # symbol rate
+    Ns = fs/baud
+    f0 = 1800
+
+    code = np.array((-2-2j,
+        -2-1j,-2+2j,-2+1j,-1-2j,-1-1j,-1+2j,-1+1j,+2-2j,+2-1j,+2+2j+2+1j,1-2j,+1-1j,1+2j,1+1j))/2
+
+    np.random.seed(seed=1)
+    rbits = np.int16(rand(6,1)*15)
+    prefix = np.array([[0],[2],[10],[8]])
+    bits = np.int16(rand(26,1)*15)
+
+    Nbits = len(rbits) + len(prefix) + len(bits)  # number of bits
+    bits = np.array(rbits.tolist() + prefix.tolist() + bits.tolist())
+    N = Nbits * Ns
+
+    M = np.tile(code[bits],(1,Ns))
+    M_prefix = np.tile(code[prefix],(1,Ns))
+    t = r_[0.0:N]/fs
+    t_prefix = r_[0.0:len(prefix)*Ns]/fs
+
+    np.save('data/real.npy', M.real.ravel())
+    np.save('data/imag.npy', M.imag.ravel())
+
+    QAM = (M.real.ravel()*cos(2*pi*f0*t) -
+            M.imag.ravel()*sin(2*pi*f0*t))/2/sqrt(2)
+
+    return QAM
+
 def main():
     parser = argparse.ArgumentParser(description='Record data from the radio.')
-    parser.add_argument('filename', help='.npy file with the data to send')
-    parser.add_argument('--fs', type=float, default=44100.0, help='Sampling frequency to send data')
+    parser.add_argument('--filename', default=None, help='.npy file with the data to send')
+    parser.add_argument('--fs', type=float, default=48000.0, help='Sampling frequency to send data')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='print additional output')
     args = parser.parse_args()
 
-    transmit(np.load(args.filename), fs=args.fs, verbose=args.verbose)
+    if args.filename:
+        transmit(np.load(args.filename), fs=args.fs, verbose=args.verbose)
+    else:
+        transmit(rand_bits(args.fs), fs=args.fs, verbose=args.verbose)
 
 if __name__ == "__main__":
     main()
