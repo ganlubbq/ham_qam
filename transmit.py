@@ -5,6 +5,7 @@ import sys
 import argparse
 import Queue
 import threading
+from scipy import signal
 
 def audio_dev_numbers(p, in_name=u'default', out_name=u'default', debug=False):
     """ din, dout, dusb = audioDevNumbers(p)
@@ -92,10 +93,13 @@ def play_audio(Q, p, fs , dev):
     # open output stream
     ostream = p.open(format=pyaudio.paFloat32, channels=1, rate=int(fs),output=True,output_device_index=dev)
     # play audio
+    count = 0
     while (1):
         data = Q.get()
-        if data=="EOT" :
+        count += len(data)
+        if data=="EOT":
             print "Finished playing"
+            print "Total %d samples"%(count)
             ostream.close()
             Q.task_done()
             break
@@ -149,6 +153,7 @@ def transmit(data, fs=44100.0, verbose=False):
     Qout = Queue.Queue()
     ptt = gen_ptt(plen=100, zlen=2200, fs=fs)
     data = np.append(ptt, data)
+    print "sending %d samples"%(len(data))
    #for n in np.r_[0:len(data):512]:
    #    Qout.put(data[n:n+512])
     Qout.put(data)
@@ -191,15 +196,74 @@ def rand_bits(fs):
 
     return QAM
 
+def prefix(fs, baud=300, shape=False):
+    Ns = fs/baud
+    f0 = 1800
+
+    code = np.array((-2-2j,
+        -2-1j,-2+2j,-2+1j,-1-2j,-1-1j,-1+2j,-1+1j,+2-2j,+2-1j,+2+2j+2+1j,1-2j,+1-1j,1+2j,1+1j))/2
+
+    prefix = np.array([[0],[2],[10],[8]])
+
+    Nbits = len(prefix)# number of bits
+    bits = np.array(prefix.tolist())
+    N = Nbits * Ns
+    t = np.r_[0.0:N]/fs
+
+    if shape:
+       #x = np.r_[-2,2:(1.0/147)]
+       #h = np.sinc(x)*signal.hann(147*4)
+       #impulses = np.zeros(len(bits)*Ns)
+       #for i,b in enumerate(bits):
+       #    impulses[i*Ns]=code[int(b)]
+       #M = signal.fftconvolve(impulses, h)
+       #t = np.r_[0.0:len(M)]/fs
+
+        imp = np.zeros(N,dtype='complex')
+        imp[::Ns] = code[bits].ravel()
+        h = signal.firwin(Ns*4,1.0/Ns)
+        imp_sinc = signal.fftconvolve(imp,h,mode='full')
+        t = np.r_[0.0:len(imp_sinc)]/fs
+        #QAM_s = #imp_sinc*np.exp(1j*2*np.pi*f0*t))
+        #QAM = M*np.exp(1j*2*np.pi*f0*t)/2/np.sqrt(2)
+        QAM = (imp_sinc.real*np.cos(2*np.pi*f0*t) -
+                imp_sinc.imag*np.sin(2*np.pi*f0*t))/2/np.sqrt(2)
+        print sum(QAM.imag)
+        QAM = QAM.real
+        np.save('data/prefix_real_%d_.npy'%(baud), imp_sinc.real)
+        np.save('data/prefix_imag_%d_.npy'%(baud), imp_sinc.imag)
+        return QAM
+    else:
+        M = np.tile(code[bits],(1,Ns))
+        QAM = (M.real.ravel()*np.cos(2*np.pi*f0*t) -
+                M.imag.ravel()*np.sin(2*np.pi*f0*t))/2/np.sqrt(2)
+        np.save('data/prefix_real_%d_.npy'%(baud), M.real.ravel())
+        np.save('data/prefix_imag_%d_.npy'%(baud), M.imag.ravel())
+        return QAM
+
 def main():
     parser = argparse.ArgumentParser(description='Record data from the radio.')
     parser.add_argument('--filename', default=None, help='.npy file with the data to send')
     parser.add_argument('--fs', type=float, default=48000.0, help='Sampling frequency to send data')
+    parser.add_argument('-b', '--baud', type=int, default=300, help='Symbol rate')
+    parser.add_argument('--prefix', action='store_true', default=False, help='Send prefix only')
+    parser.add_argument('--shape', action='store_true', default=False,
+            help='Shape pulses')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='print additional output')
     args = parser.parse_args()
 
-    if args.filename:
+    if args.prefix:
+        test = np.append(prefix(args.fs, args.baud), np.zeros(args.fs))
+        #test = np.append(test, prefix(args.fs, args.baud, args.shape))
+        print 'signal length: %d'%(len(test))
+        print 'Symbol rate: %d'%(args.baud)
+        print 'Sample rate: %d'%(args.fs)
+
+        transmit(test, fs=args.fs, verbose=args.verbose)
+
+    elif args.filename:
         transmit(np.load(args.filename), fs=args.fs, verbose=args.verbose)
+
     else:
         transmit(rand_bits(args.fs), fs=args.fs, verbose=args.verbose)
 
