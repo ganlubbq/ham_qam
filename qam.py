@@ -1,3 +1,7 @@
+from scipy import signal
+import numpy as np
+import pylab as plt
+
 ENCODE = {
     0: -2-2j,
     1: -2-1j,
@@ -18,75 +22,178 @@ ENCODE = {
 }
 
 DECODE = {
-    -2-2j:0,
-    -2-1j:1,
-    -2+2j:2,
-    -2+1j:3,
-    -1-2j:4,
-    -1-1j:5,
-    -1+2j:6,
-    -1-1j:7,
-     2-2j:8,
-     2-1j:9,
-     2+2j:10,
-     2+1j:11,
-     1-2j:12,
-     1-1j:13,
-     1+2j:14,
-     1+1j:15,
+        -2.:{-2.0:0},
+    -2.:{-1.0:1,
+         +2.0:2,
+         +1.0:3},
+    -1.:{-2.0:4,
+         -1.0:5,
+         +2.0:6,
+         -1.0:7},
+     2.:{-2.0:8,
+         -1.0:9,
+         +2.0:10,
+         +1.0:11},
+     1.:{-2.0:12,
+         -1.0:13,
+         +2.0:14,
+         +1.0:15},
 }
 
-def bits_to_symbols():
+#TODO implement these
+def hex_to_symbols():
     return
 
-def symbols_to_bits():
-    return
+def symbols_to_hex(symbols):
+    for s in symbols:
+        print s.real
+        print s.imag
+        print DECODE.keys()
+        r = DECODE[s.real]
+        r.keys
+        print r[s.imag]
 
-#def mod_QAM16(bits, f0, tbw=4, fs=44100, baud=300, Nbits=16, shaped=True, plot=False):
-    def mod_QAM16(shaped)
-    """
+def mod_QAM16(bits, prefix, f0=1800, tbw=4, fs=48000, baud=300, shaped=True, plot=False):
+    Ns = fs/baud
     #code = { 2: -2+2j, 6: -1+2j, 14: 1+2j, 10: 2+2j,
     #        3: -2+1j, 7: -1-1j, 15: 1+1j, 11: 2+1j,
     #        1: -2-1j, 5: -1-1j, 13: 1-1j, 9: 2-1j,
     #        0: -2-2j, 4: -1-2j, 12: 1-2j, 8: 2-2j}
-    """
-    Ns = fs/baud
-    Nbits = 16  # number of bits
+
+
+    code = np.array((-2-2j,
+        -2-1j,-2+2j,-2+1j,-1-2j,-1-1j,-1+2j,-1+1j,+2-2j,+2-1j,+2+2j+2+1j,1-2j,+1-1j,1+2j,1+1j))/2
+
+    Nbits = len(bits)
     N = Nbits * Ns
-    code = np.array((-2-2j, -2-1j,-2+2j,-2+1j,-1-2j,-1-1j,-1+2j,-1+1j,+2-2j,+2-1j,+2+2j+2+1j,1-2j,+1-1j,1+2j,1+1j))/2
-    np.random.seed(seed=1)
-    bits = np.int16(np.random.rand(Nbits,1)*16)
+
     M = np.tile(code[bits],(1,Ns))
-    t = r_[0.0:N]/fs
+    M_prefix = np.tile(code[prefix],(1,Ns))
+    t = np.r_[0.0:N]/fs
+    t_prefix = np.r_[0.0:len(prefix)*Ns]/fs
 
-    if shaped:
-        # Generate a windowed sinc of 147 sample
-        x = r_[-2:2:(1.0/147)]
-        h = np.sinc(x)*signal.hann(147*4)
-        impulses = np.zeros(len(bits)*Ns)
-        for i,b in enumerate(bits):
-            impulses[i*Ns]=code[int(b)]
+    fig = plt.figure(figsize = (16,4))
+    plt.plot(t_prefix, M_prefix.real.ravel())
+    plt.ylim(-3,3)
+    plt.title("Real Values of Sent Symbols")
 
-        # Apply the windowed sinc to the original OOK signal
-        QAM = signal.fftconvolve(h, impulses, 'same')
-        #QAM = QAM[(len(QAM)-N)/4:]
-        #t1 = r_[0.0:len(QAM)]/fs
-        QAM = (M.real.ravel()*cos(2*pi*f0*t) - M.imag.ravel()*sin(2*pi*f0*t))/2/sqrt(2)
-        if plot:
-            plot_sequence(t1, QAM.real, bits, modulation="QAM=16")
-    else:
-        # these are two ways of producing the same result:
-        QAM = (M.real.ravel()*cos(2*pi*f0*t) - M.imag.ravel()*sin(2*pi*f0*t))/2/sqrt(2)
-        if plot:
-            plot_sequence(t, QAM.real, bits, modulation="QAM=16")
+    fig = plt.figure(figsize = (16,4))
+    plt.plot(t_prefix, M_prefix.imag.ravel())
+    plt.ylim(-3,3)
+    plt.title("Imaginary Values of Sent Symbols")
 
-    return QAM
 
-def detect_sync():
-    return
+    fig = plt.figure()
+    plt.scatter(M.real.ravel(), M.imag.ravel())
 
-def demod_QAM16():
-    return
+    plt.xlabel('Real')
+    plt.ylabel('Imag')
+    plt.title("QAM=16 of the sequence:"+ np.array2string(np.transpose(bits)))
 
-def decode_symbols():
-    return
+    #fig = figure(figsize = (16,4))
+    #plot(t,QAM.real)
+    #xlabel('time [s]')
+    #title("QAM=16 of the sequence:"+ np.array2string(transpose(bits)))
+
+    QAM = (M.real.ravel()*np.cos(2*np.pi*f0*t) -
+            M.imag.ravel()*np.sin(2*np.pi*f0*t))/2/np.sqrt(2)
+
+    return QAM, M, t, M_prefix, t_prefix
+
+def demod_QAM16(QAM, t, f0=1800, fs=48000):
+    r = QAM*np.cos(2*np.pi*f0*t)
+    i = -QAM*np.sin(2*np.pi*f0*t)
+
+    #plot(r+i)
+    num_taps = 100
+    lp = signal.firwin(num_taps, np.pi*f0/4,nyq=fs/2.0)
+    r_lp = signal.fftconvolve(lp,r)
+    i_lp = signal.fftconvolve(lp, i)
+
+    #fig = figure(figsize = (16,4))
+    frange = np.linspace(-fs/2,fs/2,len(r))
+    frange_filt = np.linspace(-fs/2,fs/2,len(r_lp))
+    #plt.plot(frange_filt, abs(fft.fftshift(fft.fft(lp))))
+    '''
+    ylim(-3,3)
+
+    fig = figure(figsize = (16,4))
+    plt.plot(frange, abs(fft.fftshift(fft.fft(i))))
+    plt.plot(frange_filt, abs(fft.fftshift(fft.fft(i_lp))))
+
+    #r_env = abs(r_lp)
+    #i_env = abs(i_lp)
+    '''
+    r_lp = r_lp[num_taps/2:-num_taps/2+1]
+    i_lp = i_lp[num_taps/2:-num_taps/2+1]
+    return r_lp, i_lp
+
+def detect_sync(r, i, sync, sync_bits, fs=48000, baud=300):
+    Ns = fs/baud
+    corr_r = abs(signal.correlate(r.ravel(), sync.real.ravel(),"same"))
+    corr_i = abs(signal.correlate(i.ravel(), sync.imag.ravel(),"same"))
+    corr_index = np.argmax(corr_r)-sync_bits/2*Ns
+    print np.max(np.abs(corr_r))
+    print np.max(np.abs(corr_i))
+
+    fig = plt.figure(figsize = (16,4))
+    plt.plot(corr_r)
+    plt.plot(corr_i)
+    plt.title("Correlation of signal with known prefix")
+    return corr_index
+
+def decode_symbols(r, i, corr_index, r0, i0, Nbits, fs=48000, baud=300):
+    Ns = fs/baud
+    r = r[corr_index:]
+    i = i[corr_index:]
+
+    r0 = r0[corr_index:]
+    i0 = i0[corr_index:]
+
+    print len(r)
+    print len(r0)
+    print len(i0)
+
+    r = r/np.max(r)*2.2 #change this 2 depending on the input amplitude
+    i = i/np.max(i)*2.2 #change this 2 depending on the input amplitude
+
+    fig = plt.figure(figsize = (16,4))
+    plt.plot(r0)
+    plt.plot(r)
+    plt.title('Real part, raw input and normalized')
+
+    fig = plt.figure(figsize = (16,4))
+    plt.plot(i0)
+    plt.plot(i)
+    plt.title('Imaginary part, raw input and normalized')
+
+    ####Decode
+    idx = np.r_[Ns/2:len(r):Ns]
+
+    #r = np.around(r)
+    #i = np.around(i)
+
+    r_dec = np.around(r[idx])
+    i_dec = np.around(i[idx])
+
+    fig = plt.figure(figsize = (16,4))
+    plt.plot(r0)
+    plt.plot(r)
+    plt.plot(np.around(r))
+    plt.stem(idx, r_dec)
+    plt.title('Real part, decoded by sampling values as indicated')
+
+    fig = plt.figure(figsize = (16,4))
+    plt.plot(i0)
+    plt.plot(i)
+    plt.plot(np.around(i))
+    plt.stem(idx, i_dec)
+    plt.title('Imaginary part, decoded by sampling values as indicated')
+    fig = plt.figure(figsize = (8,8))
+    plt.scatter(r0*2, i0*2, c='r')
+    plt.scatter(r_dec, i_dec, c='g')
+
+    plt.title('Constellation of input message vs decoded symbols')
+
+    return r_dec + 1j*i_dec
+

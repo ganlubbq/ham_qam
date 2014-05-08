@@ -43,11 +43,12 @@ def audio_dev_numbers(p, in_name=u'default', out_name=u'default', debug=False):
         N = p.get_device_count()
         for n in range(0,N):
             name = p.get_device_info_by_index(n).get('name')
-            if name == u'USB PnP Sound Device':
+            print name
+            if 'USB' in name:
                 dusb = n
-            if name == u'Built-in Microph':
+            if in_name in name:
                 din = n
-            if name == u'Built-in Output':
+            if out_name in name:
                 dout = n
     # Windows
     else:
